@@ -51,7 +51,7 @@ import           Spec.Common
 
 
 tests :: TestTree
-tests = testGroup "Marlowe" [validatorTests] 
+tests = testGroup "Marlowe" [validatorTests]
     --, contractsTests]
     -- TODO: fix 'contractsTests' and add them back in
 
