@@ -4,6 +4,7 @@ module Main(main) where
 import qualified Spec.Actus
 import qualified Spec.Marlowe
 import qualified Spec.Actus
+import qualified Spec.Marlowe
 import           Test.Tasty
 import           Test.Tasty.Hedgehog (HedgehogTestLimit (..))
 
