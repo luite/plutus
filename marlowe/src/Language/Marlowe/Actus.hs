@@ -4,19 +4,19 @@ import           Wallet.API       (PubKey (..))
 
 
 {-|
-    A zero-coupon bond is a debt security that doesn't pay interest (a coupon)
-    but is traded at a deep discount, rendering profit at maturity
+    A zero-coupon bond is a debt security that doesn't pay nominalInterestRate (a coupon)
+    but is traded at a deep premiumDiscount, rendering profit at maturity
     when the bond is redeemed for its full face value.
 -}
 zeroCouponBond :: PubKey -> PubKey -> Int -> Int -> Timeout -> Timeout -> Timeout -> Contract
-zeroCouponBond issuer investor notional discount startDate maturityDate gracePeriod =
+zeroCouponBond creatorID counterpartyID notionalPrincipal premiumDiscount initialExchangeDate maturityDate gracePeriod =
     -- prepare money for zero-coupon bond, before it could be used
-    CommitCash (IdentCC 1) investor (Value (notional - discount)) startDate maturityDate
-        (CommitCash (IdentCC 2) issuer (Value notional) startDate (maturityDate + gracePeriod)
-            (When FalseObs startDate Null
-                (Pay (IdentPay 1) investor issuer (Committed (IdentCC 1)) maturityDate
+    CommitCash (IdentCC 1) counterpartyID (Value (notionalPrincipal - premiumDiscount)) initialExchangeDate maturityDate
+        (CommitCash (IdentCC 2) creatorID (Value notionalPrincipal) initialExchangeDate (maturityDate + gracePeriod)
+            (When FalseObs initialExchangeDate Null
+                (Pay (IdentPay 1) counterpartyID creatorID (Committed (IdentCC 1)) maturityDate
                     (When FalseObs maturityDate Null
-                        (Pay (IdentPay 2) issuer investor (Committed (IdentCC 2))
+                        (Pay (IdentPay 2) creatorID counterpartyID (Committed (IdentCC 2))
                             (maturityDate + gracePeriod) Null)
                     )
                 )
@@ -26,30 +26,30 @@ zeroCouponBond issuer investor notional discount startDate maturityDate gracePer
         Null
 
 {-|
-    A zero-coupon bond is a debt security that doesn't pay interest (a coupon)
-    but is traded at a @discount@, rendering profit at @maturityDate@
-    when the bond is redeemed for its full face @notional@ value.
-    The @issuer@ is not forced to commit before @startDate@, hence it's a trusted bond,
+    A zero-coupon bond is a debt security that doesn't pay nominalInterestRate (a coupon)
+    but is traded at a @premiumDiscount@, rendering profit at @maturityDate@
+    when the bond is redeemed for its full face @notionalPrincipal@ value.
+    The @creatorID@ is not forced to commit before @initialExchangeDate@, hence it's a trusted bond,
     as the final payment can fail.
-    If an @investor@ does not redeem the bond value during @gracePeriod@ after @maturityDate@
-    the @issuer@ can keep the value.
+    If an @counterpartyID@ does not redeem the bond value during @gracePeriod@ after @maturityDate@
+    the @creatorID@ can keep the value.
 -}
 trustedZeroCouponBond :: PubKey -> PubKey -> Int -> Int -> Timeout -> Timeout -> Timeout -> Contract
-trustedZeroCouponBond issuer investor notional discount startDate maturityDate gracePeriod =
+trustedZeroCouponBond creatorID counterpartyID notionalPrincipal premiumDiscount initialExchangeDate maturityDate gracePeriod =
     -- prepare money for zero-coupon bond, before it could be used
-    -- if the issuer won't pull the payment, investor can redeem the commit after maturityDate
-    CommitCash (IdentCC 1) investor (Value (notional - discount)) startDate maturityDate
-        (When FalseObs startDate Null -- after startDate
-            -- issuer can 'pull' the payment before maturityDate
-            (Pay (IdentPay 1) investor issuer (Committed (IdentCC 1)) maturityDate
-                -- issuer must commit a bond value before maturityDate
-                -- issuer can redeem committed value if the inverstor won't 'pull' the payment
+    -- if the creatorID won't pull the payment, counterpartyID can redeem the commit after maturityDate
+    CommitCash (IdentCC 1) counterpartyID (Value (notionalPrincipal - premiumDiscount)) initialExchangeDate maturityDate
+        (When FalseObs initialExchangeDate Null -- after initialExchangeDate
+            -- creatorID can 'pull' the payment before maturityDate
+            (Pay (IdentPay 1) counterpartyID creatorID (Committed (IdentCC 1)) maturityDate
+                -- creatorID must commit a bond value before maturityDate
+                -- creatorID can redeem committed value if the inverstor won't 'pull' the payment
                 -- within gracePeriod after maturityDate
-                (CommitCash (IdentCC 2) issuer (Value notional) maturityDate (maturityDate + gracePeriod)
+                (CommitCash (IdentCC 2) creatorID (Value notionalPrincipal) maturityDate (maturityDate + gracePeriod)
                     -- TODO: should we allow pay off only after maturity date?
-                    -- Can we allow it earlier when the issuer commmitted the pay off?
+                    -- Can we allow it earlier when the creatorID commmitted the pay off?
                     (When FalseObs maturityDate Null
-                        (Pay (IdentPay 2) issuer investor (Committed (IdentCC 2))
+                        (Pay (IdentPay 2) creatorID counterpartyID (Committed (IdentCC 2))
                             (maturityDate + gracePeriod) Null))
                     Null
                 )
@@ -58,23 +58,23 @@ trustedZeroCouponBond issuer investor notional discount startDate maturityDate g
         Null
 
 {-|
-    Zero coupon bond with @guarantor@ party, who secures @issuer@ payment with
+    Zero coupon bond with @guarantor@ party, who secures @creatorID@ payment with
     `guarantee` collateral.
 -}
 zeroCouponBondGuaranteed :: PubKey -> PubKey -> PubKey -> Int -> Int -> Timeout -> Timeout -> Timeout -> Contract
-zeroCouponBondGuaranteed issuer investor guarantor notional discount startDate maturityDate gracePeriod =
+zeroCouponBondGuaranteed creatorID counterpartyID guarantor notionalPrincipal premiumDiscount initialExchangeDate maturityDate gracePeriod =
     -- prepare money for zero-coupon bond, before it could be used
-    CommitCash (IdentCC 1) investor (Value (notional - discount)) startDate maturityDate
-        -- guarantor commits a 'guarantee' before startDate
-        (CommitCash (IdentCC 2) guarantor (Value notional) startDate (maturityDate + gracePeriod)
-            (When FalseObs startDate Null
-                (Pay (IdentPay 1) investor issuer (Committed (IdentCC 1)) maturityDate
-                    (CommitCash (IdentCC 3) issuer (Value notional) maturityDate (maturityDate + gracePeriod)
-                        -- if the issuer commits the notional before maturity date pay from it, redeem the 'guarantee'
-                        (Pay (IdentPay 2) issuer investor (Committed (IdentCC 3))
+    CommitCash (IdentCC 1) counterpartyID (Value (notionalPrincipal - premiumDiscount)) initialExchangeDate maturityDate
+        -- guarantor commits a 'guarantee' before initialExchangeDate
+        (CommitCash (IdentCC 2) guarantor (Value notionalPrincipal) initialExchangeDate (maturityDate + gracePeriod)
+            (When FalseObs initialExchangeDate Null
+                (Pay (IdentPay 1) counterpartyID creatorID (Committed (IdentCC 1)) maturityDate
+                    (CommitCash (IdentCC 3) creatorID (Value notionalPrincipal) maturityDate (maturityDate + gracePeriod)
+                        -- if the creatorID commits the notionalPrincipal before maturity date pay from it, redeem the 'guarantee'
+                        (Pay (IdentPay 2) creatorID counterpartyID (Committed (IdentCC 3))
                             (maturityDate + gracePeriod) (RedeemCC (IdentCC 2) Null))
                         -- pay from the guarantor otherwise
-                        (Pay (IdentPay 3) guarantor investor (Committed (IdentCC 2))
+                        (Pay (IdentPay 3) guarantor counterpartyID (Committed (IdentCC 2))
                             (maturityDate + gracePeriod) Null)
                     )
                 )
@@ -84,21 +84,21 @@ zeroCouponBondGuaranteed issuer investor guarantor notional discount startDate m
         Null
 
 {-|
-    Generic zero coupon bond with @guarantor@ party, who secures @issuer@ payment with
+    Generic zero coupon bond with @guarantor@ party, who secures @creatorID@ payment with
     `guarantee` collateral.
     Can be used as both _trusted_ bond, and as a bond with guarantor payments
 -}
 genericBond :: PubKey -> PubKey -> Int -> Int -> Timeout -> Timeout -> Timeout -> (Contract -> Contract) -> Contract -> Contract
-genericBond issuer investor notional discount startDate maturityDate gracePeriod guarantorCommit guarantorPay =
+genericBond creatorID counterpartyID notionalPrincipal premiumDiscount initialExchangeDate maturityDate gracePeriod guarantorCommit guarantorPay =
     -- prepare money for zero-coupon bond, before it could be used
-    CommitCash (IdentCC 1) investor (Value (notional - discount)) startDate maturityDate
-        -- guarantor commits a 'guarantee' before startDate
+    CommitCash (IdentCC 1) counterpartyID (Value (notionalPrincipal - premiumDiscount)) initialExchangeDate maturityDate
+        -- guarantor commits a 'guarantee' before initialExchangeDate
         (guarantorCommit $
-            When FalseObs startDate Null
-                (Pay (IdentPay 1) investor issuer (Committed (IdentCC 1)) maturityDate
-                    (CommitCash (IdentCC 3) issuer (Value notional) maturityDate (maturityDate + gracePeriod)
-                        -- if the issuer commits the notional before maturity date pay from it, redeem the 'guarantee'
-                        (Pay (IdentPay 2) issuer investor (Committed (IdentCC 3))
+            When FalseObs initialExchangeDate Null
+                (Pay (IdentPay 1) counterpartyID creatorID (Committed (IdentCC 1)) maturityDate
+                    (CommitCash (IdentCC 3) creatorID (Value notionalPrincipal) maturityDate (maturityDate + gracePeriod)
+                        -- if the creatorID commits the notionalPrincipal before maturity date pay from it, redeem the 'guarantee'
+                        (Pay (IdentPay 2) creatorID counterpartyID (Committed (IdentCC 3))
                             (maturityDate + gracePeriod) (RedeemCC (IdentCC 2) Null))
                         -- pay from the guarantor otherwise
                         guarantorPay
@@ -109,31 +109,31 @@ genericBond issuer investor notional discount startDate maturityDate gracePeriod
 
 
 trustedZeroCouponBond1 :: PubKey -> PubKey -> Int -> Int -> Timeout -> Timeout -> Timeout -> Contract
-trustedZeroCouponBond1 issuer investor notional discount startDate maturityDate gracePeriod = let
+trustedZeroCouponBond1 creatorID counterpartyID notionalPrincipal premiumDiscount initialExchangeDate maturityDate gracePeriod = let
     guarantorCommit cont = cont
-    in genericBond  issuer investor
-                    notional discount
-                    startDate maturityDate gracePeriod
+    in genericBond  creatorID counterpartyID
+                    notionalPrincipal premiumDiscount
+                    initialExchangeDate maturityDate gracePeriod
                     guarantorCommit
                     Null
 
 
 zeroCouponBondGuaranteed1 :: PubKey -> PubKey -> PubKey -> Int -> Int -> Timeout -> Timeout -> Timeout -> Contract
-zeroCouponBondGuaranteed1 issuer investor guarantor notional discount startDate maturityDate gracePeriod = let
+zeroCouponBondGuaranteed1 creatorID counterpartyID guarantor notionalPrincipal premiumDiscount initialExchangeDate maturityDate gracePeriod = let
     guarantorCommit cont =
-        CommitCash (IdentCC 2) guarantor (Value notional) startDate (maturityDate + gracePeriod)
+        CommitCash (IdentCC 2) guarantor (Value notionalPrincipal) initialExchangeDate (maturityDate + gracePeriod)
             cont
             Null
-    guarantorPay = Pay (IdentPay 3) guarantor investor (Committed (IdentCC 2)) (maturityDate + gracePeriod) Null
-    in genericBond  issuer investor
-                    notional discount
-                    startDate maturityDate gracePeriod
+    guarantorPay = Pay (IdentPay 3) guarantor counterpartyID (Committed (IdentCC 2)) (maturityDate + gracePeriod) Null
+    in genericBond  creatorID counterpartyID
+                    notionalPrincipal premiumDiscount
+                    initialExchangeDate maturityDate gracePeriod
                     guarantorCommit guarantorPay
 
 
 
 {-
-    Coupon bond with @guarantor@ party, who secures @issuer@ payment with
+    Coupon bond with @guarantor@ party, who secures @creatorID@ payment with
     `guarantee` collateral.
     Issuer pays coupon on @paymentDates@
 -}
@@ -147,38 +147,38 @@ couponBondGuaranteed :: PubKey
     -> Timeout
     -> Timeout
     -> Contract
-couponBondGuaranteed issuer investor guarantor notional interest startDate paymentDates maturityDate gracePeriod =
-    -- investor commits a bond face value before startDate
-    CommitCash (IdentCC 0) investor (Value notional) startDate maturityDate
-        -- guarantor commits a 'guarantee' before startDate
-        (CommitCash (IdentCC 1) guarantor (Value totalPayment) startDate (maturityDate + gracePeriod)
+couponBondGuaranteed creatorID counterpartyID guarantor notionalPrincipal nominalInterestRate initialExchangeDate paymentDates maturityDate gracePeriod =
+    -- counterpartyID commits a bond face value before initialExchangeDate
+    CommitCash (IdentCC 0) counterpartyID (Value notionalPrincipal) initialExchangeDate maturityDate
+        -- guarantor commits a 'guarantee' before initialExchangeDate
+        (CommitCash (IdentCC 1) guarantor (Value totalPayment) initialExchangeDate (maturityDate + gracePeriod)
             (Both
-                -- issuer can receive the payment from investor
-                (Pay (IdentPay 1) investor issuer (Committed (IdentCC 0)) maturityDate Null)
+                -- creatorID can receive the payment from counterpartyID
+                (Pay (IdentPay 1) counterpartyID creatorID (Committed (IdentCC 0)) maturityDate Null)
                 -- schedule payments
                 (Both payments finalPayment)
             )
-            -- if no guarantee committed we abort contract and allow to redeem the investor's commit
+            -- if no guarantee committed we abort contract and allow to redeem the counterpartyID's commit
             (RedeemCC (IdentCC 0) Null)
         )
         Null
   where
     numPayments = length paymentDates
-    coupon = interest
-    totalPayment = notional + interest * numPayments
+    coupon = nominalInterestRate
+    totalPayment = notionalPrincipal + nominalInterestRate * numPayments
 
     -- generate Commit/Pay for each scheduled payment
     payment amount (ident, paymentDate) =
-        -- issuer commits a coupon payment
-        CommitCash (IdentCC ident) issuer (Value amount) paymentDate (maturityDate + gracePeriod)
+        -- creatorID commits a coupon payment
+        CommitCash (IdentCC ident) creatorID (Value amount) paymentDate (maturityDate + gracePeriod)
             (When FalseObs paymentDate Null
-                -- investor can claim the coupon after payment date
-                (Pay (IdentPay ident) issuer investor (Committed (IdentCC ident)) (maturityDate + gracePeriod) Null))
-            -- in case issuer did not commit on time the guarantor pays the coupon
-            (Pay (IdentPay (ident + 1)) guarantor investor (Value amount) (maturityDate + gracePeriod) Null)
+                -- counterpartyID can claim the coupon after payment date
+                (Pay (IdentPay ident) creatorID counterpartyID (Committed (IdentCC ident)) (maturityDate + gracePeriod) Null))
+            -- in case creatorID did not commit on time the guarantor pays the coupon
+            (Pay (IdentPay (ident + 1)) guarantor counterpartyID (Value amount) (maturityDate + gracePeriod) Null)
 
     payments = foldr1 Both $ map (payment coupon) idsAndDates
         -- generate IdentCC/IdentPay identifiers for each payment date
         where idsAndDates = zip (map (2*) [1..]) paymentDates
 
-    finalPayment = payment notional (2 * (1 + length paymentDates), maturityDate)
+    finalPayment = payment notionalPrincipal (2 * (1 + length paymentDates), maturityDate)
