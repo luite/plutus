@@ -130,8 +130,6 @@ zeroCouponBondGuaranteed1 creatorID counterpartyID guarantor notionalPrincipal p
                     initialExchangeDate maturityDate gracePeriod
                     guarantorCommit guarantorPay
 
-
-
 {-
     Coupon bond with @guarantor@ party, who secures @creatorID@ payment with
     `guarantee` collateral.
@@ -141,13 +139,13 @@ couponBondGuaranteed :: PubKey
     -> PubKey
     -> PubKey
     -> Int
-    -> Int
+    -> Double
     -> Timeout
-    -> [Timeout]
+    -> Timeout
     -> Timeout
     -> Timeout
     -> Contract
-couponBondGuaranteed creatorID counterpartyID guarantor notionalPrincipal nominalInterestRate initialExchangeDate paymentDates maturityDate gracePeriod =
+couponBondGuaranteed creatorID counterpartyID guarantor notionalPrincipal nominalInterestRate initialExchangeDate slotCycle maturityDate gracePeriod =
     -- counterpartyID commits a bond face value before initialExchangeDate
     CommitCash (IdentCC 0) counterpartyID (Value notionalPrincipal) initialExchangeDate maturityDate
         -- guarantor commits a 'guarantee' before initialExchangeDate
@@ -163,9 +161,18 @@ couponBondGuaranteed creatorID counterpartyID guarantor notionalPrincipal nomina
         )
         Null
   where
-    numPayments = length paymentDates
-    coupon = nominalInterestRate
-    totalPayment = notionalPrincipal + nominalInterestRate * numPayments
+    cycles = takeWhile (\i ->
+            let paymentDate = initialExchangeDate + i * slotCycle
+            in paymentDate < maturityDate
+        ) [1..]
+
+    -- calculate payment schedule
+    paymentDates = map (\i -> initialExchangeDate + i * slotCycle) cycles
+
+    coupon = round $ fromIntegral notionalPrincipal * nominalInterestRate
+
+    -- calculate total amount of payments to be ensured by guarantor
+    totalPayment = notionalPrincipal + coupon * length cycles
 
     -- generate Commit/Pay for each scheduled payment
     payment amount (ident, paymentDate) =
@@ -177,6 +184,7 @@ couponBondGuaranteed creatorID counterpartyID guarantor notionalPrincipal nomina
             -- in case creatorID did not commit on time the guarantor pays the coupon
             (Pay (IdentPay (ident + 1)) guarantor counterpartyID (Value amount) (maturityDate + gracePeriod) Null)
 
+    -- generate coupon payments for given schedule
     payments = foldr1 Both $ map (payment coupon) idsAndDates
         -- generate IdentCC/IdentPay identifiers for each payment date
         where idsAndDates = zip (map (2*) [1..]) paymentDates

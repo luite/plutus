@@ -386,16 +386,17 @@ checkCouponBond = checkMarloweTrace (MarloweScenario {
         guarantorPk = guarantorPk
         update = updateAll [creatorID, counterpartyID, guarantor]
         notionalPrincipal = 1000
-        coupon = 80
+        nominalInterestRate = 0.08 -- 8%
+        coupon = round $ fromIntegral notionalPrincipal * nominalInterestRate
         initialExchangeDate = 50
-        maturityDate = 500
+        maturityDate = 450
         gracePeriod = 30240 -- about a week, 20sec * 3 * 60 * 24 * 7
     update
 
     let contract = couponBondGuaranteed
             creatorPk counterpartyPk guarantorPk -- parties
-            notionalPrincipal coupon -- value, coupon
-            initialExchangeDate [100, 200, 300] maturityDate gracePeriod -- dates
+            notionalPrincipal nominalInterestRate -- value, interest rate
+            initialExchangeDate 100 maturityDate gracePeriod -- dates
 
     withContract [creatorID, counterpartyID, guarantor] contract $ \tx validator -> do
         -- counterpartyID commits money for a bond with premiumDiscount
