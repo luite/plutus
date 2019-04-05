@@ -22,12 +22,13 @@ import           Test.Tasty.HUnit
 
 import           Language.Marlowe           hiding (discountFromPairList, insertCommit, mergeChoices)
 import           Language.Marlowe.Actus     as Actus
-import           Language.Marlowe.Client    (commit', evalContract, receivePayment, redeem)
+import           Language.Marlowe.Client    (commit', commit, evalContract, receivePayment, redeem)
 import qualified Language.PlutusTx.Builtins as Builtins
 import           Ledger                     hiding (Value)
 import qualified Ledger.Ada                 as Ada
 import           Spec.Common
 import           Wallet.Emulator
+import Debug.Trace
 
 
 tests :: TestTree
@@ -36,26 +37,26 @@ tests = testGroup "Actus"
         , testCase "Trusted zero coupon bond" checkTrustedZeroCouponBond
 
         -- TODO: fix zero coupon bond tests and add them back in
+        , localOption (HedgehogTestLimit $ Just 1) $
+            testProperty "Safe zero coupon bond on mockchain" zeroCouponBondMockchainTest
         -- , localOption (HedgehogTestLimit $ Just 3) $
-        --     testProperty "Safe zero coupon bond on mockchain" zeroCouponBondMockchainTest
-        -- , localOption (HedgehogTestLimit $ Just 3) $
-        --     testProperty "Safe zero coupon bond with guarantor on mockchain"
-        --         zeroCouponBondGuaranteedMockchainTest
+            -- testProperty "Safe zero coupon bond with guarantor on mockchain"
+                -- zeroCouponBondGuaranteedMockchainTest
         -- , localOption (HedgehogTestLimit $ Just 3) $
             -- testProperty "Coupon bond" checkCouponBond
         ]
 
 creatorPk, counterpartyPk, guarantorPk :: PubKey
-creatorPk       = toPublicKey privateKey1
-counterpartyPk  = toPublicKey privateKey2
-guarantorPk     = toPublicKey privateKey3
+creatorPk       = toPublicKey privateKey2
+counterpartyPk  = toPublicKey privateKey3
+guarantorPk     = toPublicKey privateKey4
 
 testTxHash :: TxHash
 testTxHash  = TxHash "12345678901234567890123456789012"
 
 signature1, signature2 :: Signature
-signature1  = sign ("12345678901234567890123456789012" :: BS.ByteString) privateKey1
-signature2  = sign ("12345678901234567890123456789012" :: BS.ByteString) privateKey2
+signature1  = sign ("12345678901234567890123456789012" :: BS.ByteString) privateKey2
+signature2  = sign ("12345678901234567890123456789012" :: BS.ByteString) privateKey3
 
 checkZeroCouponBond :: IO ()
 checkZeroCouponBond = do
@@ -177,22 +178,23 @@ zeroCouponBondMockchainTest = checkMarloweTrace (MarloweScenario {
         gracePeriod = 30240 -- about a week, 20sec * 3 * 60 * 24 * 7
     update
 
-    let contract = zeroCouponBond creatorPk counterpartyPk notionalPrincipal premiumDiscount initialExchangeDate maturityDate gracePeriod
+    -- let contract = zeroCouponBond creatorPk counterpartyPk notionalPrincipal premiumDiscount initialExchangeDate maturityDate gracePeriod
+    let contract = CommitCash (IdentCC 1) creatorPk (Value (notionalPrincipal - premiumDiscount)) initialExchangeDate maturityDate Null Null
 
     withContract [creatorID, counterpartyID] contract $ \tx validator -> do
-        tx <- counterpartyID `performs` commit'
-            creatorPk
+        tx <- counterpartyID `performs` commit
+            -- creatorPk
             tx
             validator
             [] []
             (IdentCC 1)
             (notionalPrincipal - premiumDiscount)
-            emptyState
-            contract
+            (State [ (IdentCC 1, (counterpartyPk, NotRedeemed (notionalPrincipal - premiumDiscount) maturityDate))] [])
+            Null
 
         update
 
-        tx <- creatorID `performs` commit'
+        {- tx <- creatorID `performs` commit'
             creatorPk
             tx
             validator
@@ -233,7 +235,7 @@ zeroCouponBondMockchainTest = checkMarloweTrace (MarloweScenario {
             (IdentPay 2)
             notionalPrincipal
             (State [] [])
-            Null
+            Null -}
 
         return (tx, State [] [])
     assertOwnFundsEq creatorID (Ada.adaValueOf 999920)

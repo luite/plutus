@@ -18,6 +18,5 @@ limit = HedgehogTestLimit (Just 30)
 
 tests :: TestTree
 tests = localOption limit $ testGroup "Marlowe Contracts"
-        [ Spec.Marlowe.tests
-        , Spec.Actus.tests
+        [ Spec.Actus.tests
         ]

@@ -80,7 +80,12 @@ evalContract :: PubKey -> TxHash -> Input -> Slot
 evalContract = $$(evaluateContract)
 
 getScriptOutFromTx :: Tx -> (TxOut, TxOutRef)
-getScriptOutFromTx = head . filter (Ledger.isPayToScriptOut . fst) . Ledger.txOutRefs
+getScriptOutFromTx tx = let
+    scriptOuts = filter (Ledger.isPayToScriptOut . fst) . Ledger.txOutRefs $ tx
+    in case scriptOuts of
+        [out] -> out
+        [] -> error $ "Transaction with no script outputs: " ++ show tx
+        _  -> error $ "Transaction with ambiguous script outputs: " ++ show tx
 
 {-| Create Marlowe 'ValidatorScript' that remembers its owner.
 
