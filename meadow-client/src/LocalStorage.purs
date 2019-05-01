@@ -10,51 +10,17 @@ module LocalStorage
   , setItem
   ) where
 
-import Control.Coroutine
-  ( Producer
-  , producer
-  )
-import Control.Monad.Aff
-  ( Aff
-  , Canceler
-  , makeAff
-  )
-import Control.Monad.Eff
-  ( Eff
-  , kind Effect
-  )
-import Data.Either
-  ( Either(..)
-  )
-import Data.Function.Uncurried
-  ( Fn1
-  , Fn2
-  , Fn3
-  , mkFn3
-  , runFn1
-  , runFn2
-  )
-import Data.Generic
-  ( class Generic
-  , gShow
-  )
-import Data.Maybe
-  ( Maybe
-  )
-import Data.Newtype
-  ( class Newtype
-  )
-import Data.Nullable
-  ( Nullable
-  , toMaybe
-  )
-import Prelude
-  ( class Show
-  , Unit
-  , map
-  , (<$>)
-  , (<<<)
-  )
+import Control.Coroutine (Producer, producer)
+import Control.Monad.Aff (Aff, Canceler, makeAff)
+import Control.Monad.Eff (Eff, kind Effect)
+import Data.Either (Either(..))
+import Data.Function.Uncurried (Fn1, Fn2, Fn3, mkFn3, runFn1, runFn2)
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype)
+import Data.Nullable (Nullable, toMaybe)
+import Prelude (class Show, Unit, map, (<$>), (<<<))
 
 foreign import data LOCALSTORAGE ::
   Effect
@@ -63,27 +29,27 @@ newtype Key
   = Key String
 
 derive instance genericKey ::
-  Generic Key
+  Generic Key _
 
 derive instance newtypeKey ::
   Newtype Key _
 
 instance showKey ::
   Show Key where
-    show = gShow
+    show = genericShow
 
 newtype RawStorageEvent
   = RawStorageEvent {key :: Maybe Key, oldValue :: Maybe String, newValue :: Maybe String}
 
 derive instance genericRawStorageEvent ::
-  Generic RawStorageEvent
+  Generic RawStorageEvent _
 
 derive instance newtypeRawStorageEvent ::
   Newtype RawStorageEvent _
 
 instance showRawStorageEvent ::
   Show RawStorageEvent where
-    show = gShow
+    show = genericShow
 
 toEvent ::
   Nullable String ->
