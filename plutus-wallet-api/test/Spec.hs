@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE TemplateHaskell   #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
 module Main(main) where
 
@@ -24,11 +25,13 @@ import qualified Hedgehog
 import qualified Hedgehog.Gen               as Gen
 import qualified Hedgehog.Range             as Range
 import qualified Language.PlutusTx.Builtins as Builtins
+import           Language.PlutusTx.Lift.Class (Lift(lift))
 import qualified Language.PlutusTx.Prelude  as PlutusTx
 import           Ledger
 import qualified Ledger.Ada                 as Ada
 import qualified Ledger.Index               as Index
 import qualified Ledger.Map
+import qualified Ledger.Validation
 import qualified Ledger.Value               as Value
 import           Ledger.Value.TH            (CurrencySymbol, Value (Value))
 import           LedgerBytes
@@ -62,7 +65,8 @@ tests = testGroup "all tests" [
     testGroup "Etc." [
         testProperty "splitVal" splitVal,
         testProperty "encodeByteString" encodeByteStringTest,
-        testProperty "encodeSerialise" encodeSerialiseTest
+        testProperty "encodeSerialise" encodeSerialiseTest,
+        testCase "equalsByteString" equalsByteStringTest
         ],
     testGroup "LedgerBytes" [
         testProperty "show-fromHex" ledgerBytesShowFromHexProp,
@@ -185,6 +189,15 @@ currencySymbolIsStringShow = property $ do
     cs <- forAll $ Value.currencySymbol <$> Gen.genSizedByteStringExact 32
     let cs' = fromString (show cs)
     Hedgehog.assert $ cs' == cs
+
+equalsByteStringTest :: HUnit.Assertion
+equalsByteStringTest =
+    let orig = "abcde" :: PlutusTx.ByteString
+        other = Ledger.Validation.plcSHA2_256 orig
+        f = $$(Ledger.compileScript [|| \l -> Builtins.equalsByteString (Builtins.sha2_256 l) ||])
+        prog = applyScript (applyScript f (Ledger.lifted orig)) (Ledger.lifted other)
+    in HUnit.assertBool "equalsByteString" (snd (evaluateScript prog))
+
 
 -- byteStringJson :: (Eq a, JSON.FromJSON a) => BSL.ByteString -> a -> [TestCase]
 byteStringJson jsonString value =
