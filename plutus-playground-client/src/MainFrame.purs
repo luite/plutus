@@ -13,7 +13,7 @@ import Action (simulationPane)
 import AjaxUtils (ajaxErrorPane)
 import AjaxUtils as AjaxUtils
 import Analytics (Event, defaultEvent, trackEvent, ANALYTICS)
-import Bootstrap (active, alert, alertPrimary, btn, btnGroup, btnSmall, colSm5, colSm6, colXs12, container, container_, empty, floatRight, hidden, justifyContentBetween, navItem_, navLink, navTabs_, noGutters, row)
+import Bootstrap (active, alert, alertPrimary, btn, btnGroup, btnSmall, col6_, colSm5, colSm6, colXs12, container, container_, empty, floatRight, hidden, justifyContentBetween, navItem_, navLink, navTabs_, noGutters, row, row_)
 import Chain (evaluationPane)
 import Control.Bind (bindFlipped)
 import Control.Comonad (extract)
@@ -54,11 +54,14 @@ import Gists (gistControls, mkNewGist, playgroundGistFile, simulationGistFile)
 import Gists as Gists
 import Halogen (Component, action)
 import Halogen as H
+import Halogen.Chartist (ChartistEffects, chartist)
+import Halogen.Chartist as Chartist
 import Halogen.Component (ParentHTML)
 import Halogen.ECharts (EChartsEffects)
 import Halogen.ECharts as EC
-import Halogen.HTML (ClassName(ClassName), HTML, a, div, div_, h1, strong_, text)
+import Halogen.HTML (ClassName(ClassName), HTML, a, div, div_, h1, slot', strong_, text)
 import Halogen.HTML.Events (onClick)
+import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties (class_, classes, href, id_)
 import Halogen.Query (HalogenM)
 import Icons (Icon(..), icon)
@@ -125,7 +128,7 @@ initialState = State
 
 mainFrame ::
   forall m aff.
-  MonadAff (EChartsEffects (AceEffects (ajax :: AJAX, analytics :: ANALYTICS, file :: FILE, localStorage :: LOCALSTORAGE | aff))) m
+  MonadAff (ChartistEffects (EChartsEffects (AceEffects (ajax :: AJAX, analytics :: ANALYTICS, file :: FILE, localStorage :: LOCALSTORAGE | aff)))) m
   => MonadAsk (SPSettings_ SPParams_) m
   => Component HTML Query Unit Void m
 mainFrame =
@@ -161,6 +164,7 @@ toEvent (HandleDragEvent _ _) = Nothing
 toEvent (HandleDropEvent _ _) = Just $ defaultEvent "DropScript"
 toEvent (HandleMockchainChartMessage _ _) = Nothing
 toEvent (HandleBalancesChartMessage _ _) = Nothing
+toEvent (HandleBalances2ChartMessage _ _) = Nothing
 toEvent (CheckAuthStatus _) = Nothing
 toEvent (PublishGist _) = Just $ (defaultEvent "Publish") { category = Just "Gist" }
 toEvent (SetGistUrl _ _) = Nothing
@@ -244,6 +248,10 @@ eval (HandleMockchainChartMessage (EC.EventRaised event) next) =
   pure next
 
 eval (HandleBalancesChartMessage EC.Initialized next) = do
+  updateChartsIfPossible
+  pure next
+
+eval (HandleBalances2ChartMessage Chartist.Initialized next) = do
   updateChartsIfPossible
   pure next
 
@@ -533,7 +541,7 @@ toAnnotation (CompilationError {row, column, text}) =
 
 render ::
   forall m aff.
-  MonadAff (EChartsEffects (AceEffects (localStorage :: LOCALSTORAGE | aff))) m
+  MonadAff (ChartistEffects (EChartsEffects (AceEffects (localStorage :: LOCALSTORAGE | aff)))) m
   => State -> ParentHTML Query ChildQuery ChildSlot m
 render state@(State {currentView})  =
   div_
@@ -542,6 +550,15 @@ render state@(State {currentView})  =
         [ class_ $ ClassName "main-frame" ]
         [ container_
             [ mainHeader
+            , row_
+                [ col6_ [ slot'
+                            cpBalances2Chart
+                            Balances2ChartSlot
+                            chartist
+                            unit
+                            (HE.input HandleBalances2ChartMessage)
+                        ]
+                ]
             , div [ classes [ row, noGutters, justifyContentBetween ] ]
                 [ div [ classes [ colXs12, colSm6 ] ] [ mainTabBar currentView ]
                 , div [ classes [ colXs12, colSm5 ] ] [ gistControls state ]

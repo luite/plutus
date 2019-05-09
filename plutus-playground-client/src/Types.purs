@@ -14,8 +14,8 @@ import Data.Argonaut.Core as Json
 import Data.Array (mapWithIndex)
 import Data.Array as Array
 import Data.Either (Either)
-import Data.Either.Nested (Either3)
-import Data.Functor.Coproduct.Nested (Coproduct3)
+import Data.Either.Nested (Either3, Either4)
+import Data.Functor.Coproduct.Nested (Coproduct3, Coproduct4)
 import Data.Generic (class Generic, gEq, gShow)
 import Data.Int as Int
 import Data.Lens (Lens, Lens', Prism', _2, over, prism', to, traversed, view)
@@ -32,7 +32,8 @@ import Data.Traversable (sequence, traverse)
 import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested ((/\))
 import Gist (Gist)
-import Halogen.Component.ChildPath (ChildPath, cp1, cp2, cp3)
+import Halogen.Chartist (ChartistMessage, ChartistQuery)
+import Halogen.Component.ChildPath (ChildPath, cp1, cp2, cp3, cp4)
 import Halogen.ECharts (EChartsMessage, EChartsQuery)
 import Language.Haskell.Interpreter (SourceCode, InterpreterError, InterpreterResult)
 import Ledger.Crypto (PubKey, _PubKey)
@@ -169,6 +170,7 @@ data Query a
   | HandleDropEvent DragEvent a
   | HandleMockchainChartMessage EChartsMessage a
   | HandleBalancesChartMessage EChartsMessage a
+  | HandleBalances2ChartMessage ChartistMessage a
   -- Gist support.
   | CheckAuthStatus a
   | PublishGist a
@@ -252,8 +254,8 @@ instance comonadFormEvent :: Comonad FormEvent where
 
 ------------------------------------------------------------
 
-type ChildQuery = Coproduct3 AceQuery EChartsQuery EChartsQuery
-type ChildSlot = Either3 EditorSlot MockchainChartSlot BalancesChartSlot
+type ChildQuery = Coproduct4 AceQuery EChartsQuery EChartsQuery ChartistQuery
+type ChildSlot = Either4 EditorSlot MockchainChartSlot BalancesChartSlot Balances2ChartSlot
 
 data EditorSlot = EditorSlot
 derive instance eqComponentEditorSlot :: Eq EditorSlot
@@ -267,6 +269,10 @@ data BalancesChartSlot = BalancesChartSlot
 derive instance eqComponentBalancesChartSlot :: Eq BalancesChartSlot
 derive instance ordComponentBalancesChartSlot :: Ord BalancesChartSlot
 
+data Balances2ChartSlot = Balances2ChartSlot
+derive instance eqComponentBalances2ChartSlot :: Eq Balances2ChartSlot
+derive instance ordComponentBalances2ChartSlot :: Ord Balances2ChartSlot
+
 cpEditor :: ChildPath AceQuery ChildQuery EditorSlot ChildSlot
 cpEditor = cp1
 
@@ -275,6 +281,9 @@ cpMockchainChart = cp2
 
 cpBalancesChart :: ChildPath EChartsQuery ChildQuery BalancesChartSlot ChildSlot
 cpBalancesChart = cp3
+
+cpBalances2Chart :: ChildPath ChartistQuery ChildQuery Balances2ChartSlot ChildSlot
+cpBalances2Chart = cp4
 
 -----------------------------------------------------------
 

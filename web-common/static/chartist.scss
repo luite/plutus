@@ -1,0 +1,15 @@
+.ct-chart-bar {
+    background-color: $gray-800;
+
+    .ct-axis-title {
+        fill: $blue;
+    }
+
+    .ct-label {
+        color: $blue;
+    }
+
+    .ct-grid {
+        stroke: $blue;
+    }
+}
