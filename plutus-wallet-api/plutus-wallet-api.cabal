@@ -48,6 +48,7 @@ library
         Wallet.Generators
         Wallet.Graph
         Language.PlutusTx.StateMachine
+        Language.PlutusTx.Cont
     reexported-modules:
         Data.Aeson.Extras,
         Ledger,

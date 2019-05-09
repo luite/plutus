@@ -9,8 +9,9 @@
 --   contract. This is useful if you need something that behaves like
 --   a pay-to-pubkey output, but is not (easily) identified by wallets
 --   as one.
-module Language.PlutusTx.Coordination.Contracts.PubKey(lock) where
+module Language.PlutusTx.Coordination.Contracts.PubKey(lock, lock') where
 
+import           Control.Monad.Trans       (MonadTrans(lift))
 import           Data.Maybe (listToMaybe)
 import qualified Data.Map   as Map
 import qualified Data.Text  as Text
@@ -19,6 +20,8 @@ import qualified Language.PlutusTx            as P
 import           Ledger                       as Ledger hiding (initialise, to)
 import           Ledger.Validation            as V
 import           Wallet.API                   as WAPI
+
+import           Language.PlutusTx.Cont
 
 pkValidator :: PubKey -> ValidatorScript
 pkValidator pk = 
@@ -57,3 +60,11 @@ lock pk vl = getRef =<< payToScript defaultSlotRange addr vl pkDataScript where
                     Just o  -> pure (scriptTxIn o (pkValidator pk) pkRedeemer)
             
         pure (addr, txin)
+
+-- | A variant of 'lock' that runs in 'MonadWalletCont' and waits for the
+--   transaction to be confirmed before returning.
+lock' :: MonadWallet m => PubKey -> Value -> MonadWalletCont m TxIn
+lock' pk vl = do
+    (refAddr, refTxIn) <- lift (lock pk vl)
+    await (fundsAtAddressT refAddr (WAPI.intervalFrom vl))
+    pure refTxIn

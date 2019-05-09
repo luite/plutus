@@ -13,6 +13,7 @@ module Language.PlutusTx.Coordination.Contracts.Currency(
     ) where
 
 import           Control.Lens              ((^.), at, to)
+import           Control.Monad.Trans       (MonadTrans(lift))
 import           Data.Bifunctor            (Bifunctor(first))
 import qualified Data.Set                  as Set
 import qualified Data.Map                  as Map
@@ -21,6 +22,7 @@ import           Data.String               (IsString(fromString))
 import qualified Data.Text                 as Text
 
 import qualified Language.PlutusTx         as P
+import           Language.PlutusTx.Cont
 
 import qualified Ledger.Ada                as Ada
 import qualified Ledger.Map                as LMap
@@ -96,6 +98,52 @@ forgedValue cur =
         a = plcCurrencySymbol (Ledger.scriptAddress (curValidator cur))
     in
         $$currencyValue a cur
+
+forge2 :: MonadWallet m => [(String, Int)] -> MonadWalletCont m Currency
+forge2 amounts = do
+    pk <- lift WAPI.ownPubKey
+
+    -- 1. We need to create the reference transaction output using the 
+    --    'PublicKey' contract. That way we get an output that behaves
+    --    like a normal public key output, but is not selected by the
+    --    wallet during coin selection. This ensures that the output still 
+    --    exists when we spend it in our forging transaction.
+    refTxIn <- PK.lock' pk (Ada.adaValueOf 1)
+
+    let
+
+         -- With that we can define the currency
+        theCurrency = mkCurrency (txInRef refTxIn) amounts
+        curAddr     = Ledger.scriptAddress (curValidator theCurrency)
+        forgedVal   = forgedValue theCurrency
+        oneOrMore   = WAPI.intervalFrom $ Ada.adaValueOf 1
+        
+    await (fundsAtAddressT curAddr oneOrMore)
+
+    -- Create a transaction that spends the contract
+    -- output, forging the currency in the process.
+    ownOutput <- lift (WAPI.ownPubKeyTxOut (forgedVal <> Ada.adaValueOf 2))
+    am <- lift (WAPI.watchedAddresses)
+
+    let inputs' = am ^. at curAddr . to (Map.toList . fromMaybe Map.empty)
+        con (r, _) = scriptTxIn r (curValidator theCurrency) (RedeemerScript $ Ledger.lifted ())
+        ins        = con <$> inputs'
+
+    let tx = Ledger.Tx
+                { txInputs = Set.fromList (refTxIn:ins)
+                , txOutputs = [ownOutput]
+                , txForge = forgedVal
+                , txFee   = Ada.zero
+                , txValidRange = defaultSlotRange
+                , txSignatures = Map.empty
+                }
+
+    lift (WAPI.logMsg $ Text.pack $ "Forging transaction: " <> show (Ledger.hashTx tx))
+    lift (WAPI.signTxAndSubmit_  tx)
+    
+    lift (payToScript_ defaultSlotRange curAddr (Ada.adaValueOf 1) (DataScript $ Ledger.lifted ()))
+
+    pure theCurrency
 
 -- | @forge [(n1, c1), ..., (n_k, c_k)]@ creates a new currency with 
 --   @k@ token names, forging @c_i@ units of each token @n_i@.
