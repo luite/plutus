@@ -3,36 +3,31 @@ module Main where
 import Prelude
 
 import Control.Coroutine (Consumer, Process, connect, consumer, runProcess)
-import Effect.Aff (forkAff, Aff)
-import Effect.Console (log)
-import Effect.Class (liftEffect)
-import Effect (Effect)
-import Effect.Unsafe (unsafePerformEffect)
 import Control.Monad.Reader.Trans (runReaderT)
-import Data.Maybe (Maybe(..), fromMaybe)
-import Gist (GistId)
+import Data.Maybe (Maybe(..))
+import Effect (Effect)
+import Effect.Aff (forkAff, Aff)
+import Effect.Class (liftEffect)
+import Effect.Console (log)
+import Effect.Unsafe (unsafePerformEffect)
+import Foreign.Generic (defaultOptions)
 import Halogen (hoist)
 import Halogen.Aff (awaitBody, runHalogenAff)
 import Halogen.VDom.Driver (runUI)
 import LocalStorage (RawStorageEvent)
+import LocalStorage as LocalStorage
 import MainFrame (mainFrame)
 import Meadow (SPParams_(SPParams_))
-import Servant.PureScript.Settings
-  ( SPSettingsToUrlPiece_(..)
-  , SPSettings_(..)
-  , URLPiece
-  , defaultSettings
-  , gDefaultToURLPiece
-  )
-import Type.Proxy (Proxy(..))
-
-import LocalStorage as LocalStorage
+import Servant.PureScript.Settings (SPSettingsDecodeJson_(..), SPSettingsEncodeJson_(..), SPSettings_(..), defaultSettings)
 
 ajaxSettings :: SPSettings_ SPParams_
-ajaxSettings = SPSettings_ $ settings
+ajaxSettings = SPSettings_ $ (settings { decodeJson = decodeJson, encodeJson = encodeJson })
   where
-  SPSettings_ settings = defaultSettings $ SPParams_ { baseURL: "/api/"
-                                                     }
+    SPSettings_ settings = defaultSettings $ SPParams_ { baseURL: "/api/" }
+    jsonOptions = defaultOptions { unwrapSingleConstructors = true }
+    decodeJson = SPSettingsDecodeJson_ jsonOptions
+    encodeJson = SPSettingsEncodeJson_ jsonOptions
+
 main ::
   Effect Unit
 main = runHalogenAff do

@@ -56,7 +56,7 @@ import Servant.PureScript.Settings (SPSettings_)
 import Simulation (simulationPane)
 import StaticData (bufferLocalStorageKey, marloweBufferLocalStorageKey)
 import StaticData as StaticData
-import Text.Parsing.Parser (Parser, runParser)
+import Text.Parsing.Parser (runParser)
 import Types (ChildQuery, ChildSlot, EditorSlot(EditorSlot), FrontendState, InputData, MarloweEditorSlot(MarloweEditorSlot), MarloweState, OracleEntry, Query(ChangeView, ResetSimulator, SetOracleBn, SetOracleVal, SetChoice, RemoveAnyInput, AddAnyInput, NextBlock, ApplyTransaction, SetSignature, ScrollTo, CompileProgram, LoadMarloweScript, LoadScript, PublishGist, SendResult, CheckAuthStatus, MarloweHandleDropEvent, MarloweHandleDragEvent, MarloweHandleEditorMessage, HandleDropEvent, HandleDragEvent, HandleEditorMessage), TransactionData, TransactionValidity(..), View(Simulation, Editor), _authStatus, _blockNum, _choiceData, _contract, _createGistResult, _input, _inputs, _marloweState, _moneyInContract, _oldContract, _oracleData, _outcomes, _compilationResult, _signatures, _state, _transaction, _validity, _view, cpEditor, cpMarloweEditor, _result)
 
 emptyInputData :: InputData
@@ -351,7 +351,7 @@ resetContract = do
 
 
 evalF ::
-  forall m aff.
+  forall m.
   MonadAff m =>
   MonadAsk (SPSettings_ SPParams_) m =>
   Query
@@ -558,7 +558,6 @@ withMarloweEditor action = do
     _ -> pure Nothing
 
 showCompilationErrorAnnotations ::
-  forall m.
   Array Annotation ->
   Editor ->
   Effect Unit
