@@ -19,8 +19,12 @@ packages:
 
 # Needs some patches, but upstream seems to be fairly dead (no activity in > 1 year)
 - location:
+    git: https://github.com/shmish111/purescript-bridge.git
+    commit: 80774b20f8df2af4138f9e2a6d0c64da33b1fcc5
+  extra-dep: true
+- location:
     git: https://github.com/shmish111/servant-purescript.git
-    commit: 18e1b61bf0aa3792285c6d8ecd0e4a72d76e34f5
+    commit: 7375de2d8591f6c0f864346fd4895e55f156ffee
   extra-dep: true
 - location:
     git: https://github.com/input-output-hk/cardano-crypto.git
