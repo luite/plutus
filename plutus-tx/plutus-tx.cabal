@@ -33,6 +33,11 @@ common lang
                  -Wincomplete-uni-patterns -Wincomplete-record-updates
                  -Wredundant-constraints -Widentities
 
+flag ghcjs-plugin
+  description: build the plugin for GHCJS instead of GHC
+  default:     False
+  manual:      True
+
 library
     import: lang
     hs-source-dirs: src
@@ -50,7 +55,8 @@ library
     other-modules:
         Language.PlutusTx.Prelude.Stage0
         Language.PlutusTx.Prelude.Stage1
-    build-tool-depends: doctest:doctest
+    if(!impl(ghcjs))
+        build-tool-depends: doctest:doctest
     build-depends:
         base >=4.9 && <5,
         bytestring -any,
@@ -90,7 +96,6 @@ library plutus-tx-compiler
         bytestring -any,
         containers -any,
         extra -any,
-        ghc >=8.6 && <8.7,
         language-plutus-core -any,
         lens -any,
         mtl -any,
@@ -101,6 +106,10 @@ library plutus-tx-compiler
         th-abstraction <0.3.0.0,
         text -any,
         transformers -any
+    if(flag(ghcjs-plugin) || impl(ghcjs))
+        build-depends: ghc-api-ghcjs
+    else
+        build-depends: ghc >=8.6 && <8.7
 
 test-suite plutus-tx-tests
     type: exitcode-stdio-1.0
