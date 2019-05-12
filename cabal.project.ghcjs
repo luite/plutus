@@ -67,5 +67,5 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/luite/network.git
-  tag: 5984d596082f2695040d18904a11d0eba8e7c043
+  tag: b77e7c10e29ccf3512be67defbe0fb66ac2bc4c8
 
