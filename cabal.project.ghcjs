@@ -1,0 +1,96 @@
+packages: language-plutus-core
+          marlowe
+          plutus-core-interpreter
+          plutus-emulator
+          plutus-exe
+          plutus-wallet-api
+          plutus-tx
+          plutus-use-cases
+          plutus-ir
+          plutus-playground-server
+          plutus-playground-lib
+          plutus-tutorial
+          plutus-book
+          playground-common
+          marlowe-playground-server
+          marlowe-symbolic
+          plutus-contract
+          plutus-js-libraries
+          deployment-server
+          iots-export
+          plutus-ghc-stub
+          ../ghcjs
+          ../ghcjs/lib/ghc-api-ghcjs
+          ../ghcjs/lib/haddock-api-ghcjs
+          ../ghcjs/lib/ghcjs-th
+          ../ghcjs/lib/haddock-library-ghcjs
+
+optimization: 2
+constraints: language-plutus-core +development
+           , plutus-wallet-api +development
+           , plutus-emulator +development
+           , plutus-exe +development
+           , plutus-core-interpreter +development
+           , plutus-ir +development
+           , plutus-playground-server +development
+           , plutus-playground-lib +development
+           , iots-export +development
+           , ghcjs +use-host-template-haskell
+           , ghc-api-ghcjs +use-host-template-haskell
+           , ghcjs-th +use-host-template-haskell
+           , plutus-tx +ghcjs-plugin
+max-backjumps: 160000
+write-ghc-environment-files: never
+tests: true
+benchmarks: true
+compiler: ghcjs
+
+allow-boot-library-installs:
+    true
+
+allow-newer:
+    cborg:containers
+
+program-options
+  alex-options: -g
+  happy-options: -gcsa
+
+source-repository-package
+  type: git
+  location: https://github.com/target/row-types
+  tag: 1e8d5e084ffd46f6c7842826a1f62c60820885df
+
+source-repository-package
+  type: git
+  location: https://github.com/shmish111/purescript-bridge.git
+  tag: 0042602f8a195b1fe185138f9ccca02020b8dd62
+
+source-repository-package
+  type: git
+  location: https://github.com/shmish111/servant-purescript.git
+  tag: ece5d1dad16a5731ac22040075615803796c7c21
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-crypto.git
+  tag: 3c5db489c71a4d70ee43f5f9b979fcde3c797f2a
+
+source-repository-package
+  type: git
+  location: https://github.com/bitnomial/prometheus.git
+  tag: 69e4cefeb7d04d61a54cb0ae9fd57e2de134badb
+
+source-repository-package
+  type: git
+  location: https://github.com/michaelpj/unlit.git
+  tag: 9ca1112093c5ffd356fc99c7dafa080e686dd748
+
+source-repository-package
+  type: git
+  location: https://github.com/shmish111/github.git
+  tag: cc27b9de4d5d0939235fa9a8b418de3ea4807bab
+
+source-repository-package
+  type: git
+  location: https://github.com/luite/network.git
+  tag: b77e7c10e29ccf3512be67defbe0fb66ac2bc4c8

@@ -1,4 +1,6 @@
 resolver: lts-13.19
+system-ghc: true
+skip-ghc-check: true
 
 packages:
 - language-plutus-core
@@ -15,6 +17,7 @@ packages:
 - plutus-playground-lib
 - plutus-tutorial
 - plutus-book
+- plutus-js-libraries
 - plutus-contract
 - plutus-emulator
 - deployment-server
