@@ -29,7 +29,7 @@ import           Wallet.Emulator                  (Wallet (..))
 
 import           Language.Plutus.Contract.IOTS    (IotsRow, IotsType, rowSchema)
 
-import qualified Plutus.Contract.Server           as Server
+import qualified Language.Plutus.Contract.Server  as Server
 
 
 -- | A number of constraints to ensure that 's' is the schema
